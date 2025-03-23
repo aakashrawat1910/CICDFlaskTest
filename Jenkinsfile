@@ -43,7 +43,7 @@ pipeline {
             steps {
                script {
                   sh """
-                ssh -o StrictHostKeyChecking=no -i /var/jenkins_home/.ssh/id_rsa ubuntu@13.57.48.63 <<EOF
+                ssh -o StrictHostKeyChecking=no -i /var/jenkins_home/.ssh/id_rsa ubuntu@13.56.179.212 <<EOF
                 set -e  # Stop script on error
                 
                 echo "🚀 Deploying Flask app..."
