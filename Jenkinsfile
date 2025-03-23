@@ -42,6 +42,11 @@ pipeline {
                 
                 echo "🚀 Deploying Flask app..."
                 
+                # Install required packages (with sudo if needed)
+                echo "Installing required packages..."
+                sudo apt-get update
+                sudo apt-get install -y python3-venv python3-pip
+                
                 # 🛑 Checking for existing Flask processes
                 echo "🛑 Checking for existing Flask processes..."
                 PID=\$(lsof -t -i:5000) || true  # Prevent failure if no process is running
