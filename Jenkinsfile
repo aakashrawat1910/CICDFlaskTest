@@ -5,7 +5,7 @@ pipeline {
         APP_DIR = "/home/ubuntu/flask_app"  // Directory on EC2 where the app will be deployed
         SSH_KEY = "/var/jenkins_home/.ssh/id_rsa"
         EC2_USER = "ubuntu"
-        EC2_IP = "13.57.48.63"
+        EC2_IP = "54.219.100.124"
     }
 
     stages {
@@ -43,7 +43,7 @@ pipeline {
             steps {
                script {
                   sh """
-                ssh -o StrictHostKeyChecking=no -i /var/jenkins_home/.ssh/id_rsa ubuntu@13.56.179.212 <<EOF
+                ssh -o StrictHostKeyChecking=no -i /var/jenkins_home/.ssh/id_rsa ubuntu@54.219.100.124 <<EOF
                 set -e  # Stop script on error
                 
                 echo "🚀 Deploying Flask app..."
