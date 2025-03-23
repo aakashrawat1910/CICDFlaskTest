@@ -1,22 +1,19 @@
 pipeline {
     agent any
-
     environment {
         APP_DIR = "/home/ubuntu/flask_app"  // Directory on EC2 where the app will be deployed
         SSH_KEY = "/var/jenkins_home/.ssh/id_rsa"
         EC2_USER = "ubuntu"
         EC2_IP = "54.219.100.124"
+        REPO_URL = "https://github.com/aakashrawat1910/CICDFlaskTest.git"
     }
-
     stages {
         stage('Checkout Code') {
             steps {
                 git branch: 'main',
-                    
-                    url: 'https://github.com/aakashrawat1910/CICDFlaskTest.git'
+                    url: '${REPO_URL}'
             }
         }
-
         stage('Build') {
             steps {
                 sh '''
@@ -28,7 +25,6 @@ pipeline {
                 '''
             }
         }
-
         stage('Test') {
             steps {
                 sh '''
@@ -38,48 +34,58 @@ pipeline {
                 '''
             }
         }
-
-       stage('Deploy to EC2') {
+        stage('Deploy to EC2') {
             steps {
-               script {
-                  sh """
-                ssh -o StrictHostKeyChecking=no -i /var/jenkins_home/.ssh/id_rsa ubuntu@54.219.100.124 <<EOF
-                set -e  # Stop script on error
-                
-                echo "🚀 Deploying Flask app..."
-                cd ~/FlaskTest || exit 1
-
-                # 🔥 STOP any running Flask process before starting a new one
-                echo "🛑 Checking for existing Flask processes..."
-                PID=\$(lsof -t -i:5000) || true  # Prevent failure if no process is running
-                if [ -n "\$PID" ]; then
-                    echo "Killing existing Flask process: \$PID"
-                    kill -9 \$PID || true  # Ignore failure if the process is already dead
-                else
-                    echo "No existing Flask process found."
-                fi
-
-                # Fetch latest code
-                git reset --hard
-                git pull origin main
-
-                # Activate virtual environment and install dependencies
-                source venv/bin/activate
-                pip install --upgrade pip
-                pip install -r requirements.txt
-
-                # 🚀 Start Flask app in the background
-                echo "Starting Flask app..."
-                nohup venv/bin/python3 app.py > output.log 2>&1 &
-
-                echo "✅ Deployment completed successfully!"
-                exit 0  # ✅ Ensure Jenkins exits successfully
-                EOF
-            """
+                script {
+                    sh """
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} ${EC2_USER}@${EC2_IP} <<EOF
+                    set -e  # Stop script on error
+                    
+                    echo "🚀 Deploying Flask app..."
+                    
+                    # 🛑 Stop any running Flask process before starting a new one
+                    echo "🛑 Checking for existing Flask processes..."
+                    PID=\$(lsof -t -i:5000) || true  # Prevent failure if no process is running
+                    if [ -n "\$PID" ]; then
+                        echo "Killing existing Flask process: \$PID"
+                        kill -9 \$PID || true  # Ignore failure if the process is already dead
+                    else
+                        echo "No existing Flask process found."
+                    fi
+                    
+                    # Check if the repository exists
+                    if [ ! -d "~/FlaskTest" ] || [ ! -d "~/FlaskTest/.git" ]; then
+                        echo "Repository doesn't exist or isn't a git repo. Cloning..."
+                        rm -rf ~/FlaskTest
+                        git clone ${REPO_URL} ~/FlaskTest
+                    fi
+                    
+                    # Navigate to app directory and update code
+                    cd ~/FlaskTest
+                    git fetch origin
+                    git reset --hard origin/main
+                    
+                    # Set up virtual environment if it doesn't exist
+                    if [ ! -d "venv" ]; then
+                        echo "Creating virtual environment..."
+                        python3 -m venv venv
+                    fi
+                    
+                    # Activate virtual environment and install dependencies
+                    source venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                    
+                    # 🚀 Start Flask app in the background
+                    echo "Starting Flask app..."
+                    nohup venv/bin/python3 app.py > output.log 2>&1 &
+                    
+                    echo "✅ Deployment completed successfully!"
+                    exit 0  # ✅ Ensure Jenkins exits successfully
+                    EOF
+                    """
+                }
+            }
         }
     }
-}
-
-
-}
 }
