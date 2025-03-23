@@ -12,8 +12,8 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 git branch: 'main',
-                    credentialsId: '2e869095-a76c-4b00-85e0-cb0fddb3a460',
-                    url: 'git@github.com:reshmanavale/FlaskTest.git'
+                    
+                    url: 'https://github.com/aakashrawat1910/CICDFlaskTest.git'
             }
         }
 
