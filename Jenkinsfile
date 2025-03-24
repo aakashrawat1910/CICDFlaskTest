@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        APP_DIR = "/home/ubuntu/flask_app"
+        APP_DIR = "${WORKSPACE}/flask_app"
         SSH_KEY = "/var/jenkins_home/.ssh/id_rsa"
         EC2_USER = "ubuntu"
         EC2_IP = "13.57.8.246"
