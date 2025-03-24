@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        APP_DIR = "${WORKSPACE}/flask_app"
+        APP_DIR = "flask_app"
         SSH_KEY = "/var/jenkins_home/.ssh/id_rsa"
         EC2_USER = "ubuntu"
         EC2_IP = "13.57.8.246"
@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                dir("${APP_DIR}") {
+                dir("${WORKSPACE}/${APP_DIR}") {
                     git branch: 'main',
                         url: 'https://github.com/aakashrawat1910/CICDFlaskTest.git'
                 }
@@ -17,7 +17,7 @@ pipeline {
         }
         stage('Build') {
             steps {
-                dir("${APP_DIR}") {
+                dir("${WORKSPACE}/${APP_DIR}") {
                     sh '''
                     apt update && apt install -y python3-venv python3-pip
                     python3 -m venv venv
@@ -30,7 +30,7 @@ pipeline {
         }
         stage('Test') {
             steps {
-                dir("${APP_DIR}") {
+                dir("${WORKSPACE}/${APP_DIR}") {
                     sh '''
                     . venv/bin/activate
                     pip install pytest
