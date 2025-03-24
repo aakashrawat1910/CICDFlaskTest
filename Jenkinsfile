@@ -9,28 +9,34 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/aakashrawat1910/CICDFlaskTest.git'
+                dir("${APP_DIR}") {
+                    git branch: 'main',
+                        url: 'https://github.com/aakashrawat1910/CICDFlaskTest.git'
+                }
             }
         }
         stage('Build') {
             steps {
-                sh '''
-                apt update && apt install -y python3-venv python3-pip
-                python3 -m venv venv
-                . venv/bin/activate
-                pip install --upgrade pip
-                pip install -r requirements.txt
-                '''
+                dir("${APP_DIR}") {
+                    sh '''
+                    apt update && apt install -y python3-venv python3-pip
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                    '''
+                }
             }
         }
         stage('Test') {
             steps {
-                sh '''
-                . venv/bin/activate
-                pip install pytest
-                pytest || true
-                '''
+                dir("${APP_DIR}") {
+                    sh '''
+                    . venv/bin/activate
+                    pip install pytest
+                    pytest || true
+                    '''
+                }
             }
         }
         stage('Deploy to EC2') {
