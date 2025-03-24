@@ -66,8 +66,7 @@ pipeline {
                     pip install --upgrade pip
                     pip install -r requirements.txt
 
-                    # Run the Flask application
-                    nohup python3 -m app &
+                    
 
                     exit
                     EOF
