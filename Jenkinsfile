@@ -4,7 +4,7 @@ pipeline {
         APP_DIR = "/home/ubuntu/flask_app"
         SSH_KEY = "/var/jenkins_home/.ssh/id_rsa"
         EC2_USER = "ubuntu"
-        EC2_IP = "54.219.100.124"
+        EC2_IP = "13.57.8.246"
     }
     stages {
         stage('Checkout Code') {
@@ -40,76 +40,25 @@ pipeline {
                     ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} ${EC2_USER}@${EC2_IP} <<EOF
                     set -e  # Stop on error
 
-                    echo "🚀 Deploying Flask app..."
+                    # Create application directory if it doesn't exist
+                    mkdir -p ${APP_DIR}
 
-                    # Install required packages
-                    echo "Installing required packages..."
-                    sudo apt-get update
-                    sudo apt-get install -y python3-venv python3-pip
+                    # Navigate to application directory
+                    cd ${APP_DIR}
 
-                    # Check for existing Flask processes and kill them
-                    echo "🛑 Checking for existing Flask processes..."
-                    PID=\$(lsof -t -i:5000) || true
-                    if [ -n "\$PID" ]; then
-                        echo "Killing existing Flask process: \$PID"
-                        kill -9 \$PID || true
-                    else
-                        echo "No existing Flask process found."
-                    fi
+                    # Pull the latest code from the repository
+                    git pull origin main
 
-                    # Navigate to home directory
-                    cd ~
-
-                    # Clone repo if it doesn’t exist
-                    if [ ! -d "FlaskTest" ] || [ ! -d "FlaskTest/.git" ]; then
-                        echo "Repository doesn't exist or isn't a git repo. Cloning..."
-                        rm -rf FlaskTest
-                        git clone https://github.com/aakashrawat1910/CICDFlaskTest.git FlaskTest
-                    fi
-
-                    # Navigate to app directory and update code
-                    cd ~/FlaskTest
-                    git fetch origin
-                    git reset --hard origin/main
-
-                    # Remove old virtual environment if it exists but is problematic
-                    if [ -d "venv" ] && [ ! -f "venv/bin/activate" ]; then
-                        echo "Removing problematic virtual environment..."
-                        rm -rf venv
-                    fi
-
-                    # Create virtual environment if needed
-                    if [ ! -d "venv" ]; then
-                        echo "Creating virtual environment..."
-                        python3 -m venv venv
-                        if [ ! -f "venv/bin/activate" ]; then
-                            echo "Virtual environment creation failed!"
-                            exit 1
-                        fi
-                    fi
-
-                    # Activate virtual environment and install dependencies
-                    echo "Activating virtual environment..."
-                    source ./venv/bin/activate
-
-                    echo "Installing dependencies..."
+                    # Set up virtual environment and install dependencies
+                    python3 -m venv venv
+                    . venv/bin/activate
                     pip install --upgrade pip
                     pip install -r requirements.txt
 
-                    # Start Flask app in the background
-                    echo "Starting Flask app..."
-                    nohup python3 app.py > output.log 2>&1 &
+                    # Run the Flask application
+                    nohup python3 -m app &
 
-                    sleep 5  # Wait for the app to start
-
-                    # Verify Flask app is running
-                    if ! pgrep -f "python3 app.py"; then
-                        echo "❌ Flask failed to start!"
-                        exit 1
-                    fi
-
-                    echo "✅ Deployment completed successfully!"
-                    exit 0
+                    exit
                     EOF
                     """
                 }
