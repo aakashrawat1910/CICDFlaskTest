@@ -1,6 +1,6 @@
 # CI/CD Pipeline using Jenkins and GitHub Actions
 
-This guide provides step-by-step instructions to set up a CI/CD pipeline using **Jenkins** and **GitHub Actions** for a Python web application. The pipeline includes build, test, and deployment to an AWS EC2 instance.
+This guide provides comprehensive instructions to set up a CI/CD pipeline using **Jenkins** and **GitHub Actions** for a Python web application. The pipeline includes build, test, and deployment stages to an AWS EC2 instance.
 
 ---
 
@@ -12,15 +12,16 @@ This guide provides step-by-step instructions to set up a CI/CD pipeline using *
 5. [Deployment to AWS EC2](#deployment-to-aws-ec2)
 6. [Screenshots and Attachments](#screenshots-and-attachments)
 7. [Troubleshooting](#troubleshooting)
+8. [Conclusion](#conclusion)
 
 ---
 
 ## Prerequisites
-- A GitHub repository containing the Python web application
-- An AWS EC2 instance with SSH access
-- Jenkins installed and running (using Docker or a dedicated server)
-- GitHub Actions enabled on your repository
-- Python installed on Jenkins and EC2
+- A GitHub repository containing the Python web application.
+- An AWS EC2 instance with SSH access.
+- Jenkins installed and running (using Docker or a dedicated server).
+- GitHub Actions enabled on your repository.
+- Python installed on Jenkins and EC2.
 
 ---
 
@@ -94,7 +95,7 @@ You can install Jenkins on a virtual machine, use a cloud-based Jenkins service,
 1. Navigate to **Jenkins Dashboard → New Item → Pipeline**
 2. Add the following pipeline script:
 
-```
+```groovy
 pipeline {
     agent any
     environment {
@@ -185,44 +186,100 @@ pipeline {
 2. Create a new file `ci-cd.yml` and add the following:
 
 ```yaml
-name: CI/CD Pipeline
+name: Flask CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
+      - staging
+  pull_request:
+    branches:
+      - main
+      - staging
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Run Tests
-        run: pytest
 
-  deploy:
-    needs: build-and-test
-    runs-on: ubuntu-latest
     steps:
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@master
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd /var/www/app
-            git pull origin main
-            pip install -r requirements.txt
-            systemctl restart myapp.service
-```
+          python-version: 3.9
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Tests
+        run: python -m unittest discover
+
+  deploy-staging:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Staging Server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          STAGING_USER: ${{ secrets.STAGING_USER }}
+      
+        run: |
+          echo "$SSH_PRIVATE_KEY" > deploy_key.pem
+          chmod 600 deploy_key.pem
+
+          ssh -o StrictHostKeyChecking=no -i deploy_key.pem $STAGING_USER@$STAGING_HOST << 'EOF'
+            set -e  # Exit on error
+            
+            # Ensure project directory exists
+            mkdir -p /home/ubuntu/FlaskTest
+            cd /home/ubuntu/FlaskTest
+
+            # Clone repo if it doesn't exist
+            if [ ! -d ".git" ]; then
+              git clone git@github.com:your-user/your-repo.git .
+            fi
+
+            # Ensure correct branch
+            git fetch origin
+            if git rev-parse --verify staging; then
+              git checkout staging
+            else
+              git checkout -b staging
+            fi
+            git pull origin staging
+
+            # Ensure virtual environment exists
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+            source venv/bin/activate
+
+            # Check if requirements.txt exists before installing dependencies
+            if [ -f "requirements.txt" ]; then
+              pip install -r requirements.txt
+            else
+              echo "ERROR: requirements.txt not found!"
+              exit 1
+            fi
+
+            # Restart Flask application
+            if systemctl list-units --full -all | grep -Fq "flaskapp.service"; then
+              sudo systemctl restart flaskapp
+            else
+              echo "Warning: flaskapp.service not found. Ensure it's set up."
+            fi
+          EOF
+ ```
 
 ### 2. Set Up Secrets in GitHub
 - **EC2_HOST**: Public IP of your EC2 instance
@@ -286,19 +343,12 @@ Attach the following screenshots for documentation:
 ![image](https://github.com/user-attachments/assets/65d2c636-8d44-441c-81b8-1ff5a154b297)
 ![image](https://github.com/user-attachments/assets/c427498f-4905-4362-a5f8-f44117ac6a27)
 
-
-
-
-
 - **GitHub Actions Execution**: 
 ![Screenshot 2025-03-22 212616](https://github.com/user-attachments/assets/47ff9976-fb02-4892-acdb-5cab35d30e48)
 <img width="671" alt="image" src="https://github.com/user-attachments/assets/17d02bb3-342c-4e04-bc43-94b1d2ab5228" />
 
-
 - **AWS EC2 Deployment**: Screenshot of the deployed application running
 ![Screenshot 2025-03-22 212616](https://github.com/user-attachments/assets/e45b23c6-4bba-48c7-a679-8c041601c01f)
-
-```
 
 ---
 
@@ -312,7 +362,7 @@ Attach the following screenshots for documentation:
   - Ensure the correct SSH private key is added as a GitHub secret.
 - **Jenkins Not Triggering Builds**:
   - Verify the webhook setup in GitHub settings.
- ```
+
 ---
 
 ## Conclusion
