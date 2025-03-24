@@ -78,12 +78,6 @@ You can install Jenkins on a virtual machine, use a cloud-based Jenkins service,
      --publish 8080:8080 --publish 50000:50000 myjenkins-blueocean:2.492.2-1
    ```
 
-If running Jenkins via Docker:
-```sh
-mkdir jenkins_home && cd jenkins_home
-docker run -d --name jenkins -p 8080:8080 -p 50000:50000 -v $(pwd):/var/jenkins_home jenkins/jenkins:lts
-```
-
 ### 2. Install Required Plugins
 - **Git Plugin**
 - **Pipeline Plugin**
@@ -103,88 +97,82 @@ docker run -d --name jenkins -p 8080:8080 -p 50000:50000 -v $(pwd):/var/jenkins_
 ```
 pipeline {
     agent any
-
     environment {
-        APP_DIR = "/home/ubuntu/flask_app"  // Directory on EC2 where the app will be deployed
+        APP_DIR = "flask_app"
         SSH_KEY = "/var/jenkins_home/.ssh/id_rsa"
         EC2_USER = "ubuntu"
-        EC2_IP = "13.57.48.63"
+        EC2_IP = "13.57.8.246"
     }
-
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'main',
-                    credentialsId: '2e869095-a76c-4b00-85e0-cb0fddb3a460',
-                    url: 'git@github.com:reshmanavale/FlaskTest.git'
+                dir("${WORKSPACE}/${APP_DIR}") {
+                    git branch: 'main',
+                        url: 'https://github.com/aakashrawat1910/CICDFlaskTest.git'
+                }
             }
         }
-
         stage('Build') {
             steps {
-                sh '''
-                apt update && apt install -y python3-venv python3-pip
-                python3 -m venv venv
-                . venv/bin/activate
-                pip install --upgrade pip
-                pip install -r requirements.txt
-                '''
+                dir("${WORKSPACE}/${APP_DIR}") {
+                    sh '''
+                    apt update && apt install -y python3-venv python3-pip
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                    '''
+                }
             }
         }
-
         stage('Test') {
             steps {
-                sh '''
-                . venv/bin/activate
-                pip install pytest  # Ensure pytest is installed
-                pytest || true  # Allow tests to fail without stopping pipeline
-                '''
+                dir("${WORKSPACE}/${APP_DIR}") {
+                    sh '''
+                    . venv/bin/activate
+                    pip install pytest
+                    pytest || true
+                    '''
+                }
             }
         }
-
-       stage('Deploy to EC2') {
+        stage('Deploy to EC2') {
             steps {
-               script {
-                  sh """
-                ssh -o StrictHostKeyChecking=no -i /var/jenkins_home/.ssh/id_rsa ubuntu@13.57.48.63 <<EOF
-                set -e  # Stop script on error
-                
-                echo "🚀 Deploying Flask app..."
-                cd ~/FlaskTest || exit 1
+                script {
+                    sh """
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} ${EC2_USER}@${EC2_IP} <<EOF
+                    set -e  # Stop on error
 
-                # 🔥 STOP any running Flask process before starting a new one
-                echo "🛑 Checking for existing Flask processes..."
-                PID=\$(lsof -t -i:5000) || true  # Prevent failure if no process is running
-                if [ -n "\$PID" ]; then
-                    echo "Killing existing Flask process: \$PID"
-                    kill -9 \$PID || true  # Ignore failure if the process is already dead
-                else
-                    echo "No existing Flask process found."
-                fi
+                    # Create application directory if it doesn't exist
+                    mkdir -p ${APP_DIR}
 
-                # Fetch latest code
-                git reset --hard
-                git pull origin main
+                    # Navigate to application directory
+                    cd ${APP_DIR} || exit 1
 
-                # Activate virtual environment and install dependencies
-                source venv/bin/activate
-                pip install --upgrade pip
-                pip install -r requirements.txt
+                    # Clone the repository if it doesn't exist
+                    if [ ! -d ".git" ]; then
+                        git clone https://github.com/aakashrawat1910/CICDFlaskTest.git .
+                    fi
 
-                # 🚀 Start Flask app in the background
-                echo "Starting Flask app..."
-                nohup venv/bin/python3 app.py > output.log 2>&1 &
+                    # Pull the latest code from the repository
+                    git pull origin main
 
-                echo "✅ Deployment completed successfully!"
-                exit 0  # ✅ Ensure Jenkins exits successfully
-                EOF
-            """
+                    # Set up virtual environment and install dependencies
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+
+                    # Run the Flask application
+                    nohup python3 -m app &
+
+                    exit
+                    EOF
+                    """
+                }
+            }
         }
     }
-}
-
-
-}
 }
 ```
 
@@ -294,10 +282,12 @@ jobs:
 ## Screenshots and Attachments
 Attach the following screenshots for documentation:
 - **Jenkins Setup**: Screenshot of Jenkins plugins installed
-- ![Screenshot 2025-03-16 011436](https://github.com/user-attachments/assets/2fa15e5e-608e-40a3-b722-ebef25fe96bf)
-- ![Screenshot 2025-03-16 003144](https://github.com/user-attachments/assets/cc44f6d4-02bb-4fcf-b9ef-cd6657cc1905)
-![Screenshot 2025-03-16 003050](https://github.com/user-attachments/assets/b434eae5-3e07-44a9-a398-006aaa594db1)
-![Screenshot 2025-03-16 000732](https://github.com/user-attachments/assets/71edaf54-8f41-4539-8472-c6dc03da388d)
+- ![image](https://github.com/user-attachments/assets/ed994e8e-cf32-4774-b15a-569da31ae127)
+![image](https://github.com/user-attachments/assets/65d2c636-8d44-441c-81b8-1ff5a154b297)
+![image](https://github.com/user-attachments/assets/c427498f-4905-4362-a5f8-f44117ac6a27)
+
+
+
 
 
 - **GitHub Actions Execution**: 
