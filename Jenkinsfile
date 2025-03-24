@@ -50,7 +50,12 @@ pipeline {
                     mkdir -p ${APP_DIR}
 
                     # Navigate to application directory
-                    cd ${APP_DIR}
+                    cd ${APP_DIR} || exit 1
+
+                    # Clone the repository if it doesn't exist
+                    if [ ! -d ".git" ]; then
+                        git clone https://github.com/aakashrawat1910/CICDFlaskTest.git .
+                    fi
 
                     # Pull the latest code from the repository
                     git pull origin main
